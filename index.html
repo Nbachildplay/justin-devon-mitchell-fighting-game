@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Justin Devon Mitchell - Fighting Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="gameContainer">
+        <header>
+            <h1>Justin Devon Mitchell - Fighting Game</h1>
+            <div id="contactInfo">
+                <span>📞 Contact: 769-341-8531</span>
+            </div>
+        </header>
+
+        <div id="monetizationPanel">
+            <div id="trialInfo">
+                <h3>🎮 Free Trial Active</h3>
+                <div id="trialTimer">Time Remaining: <span id="timeLeft">5:00</span></div>
+                <button id="upgradeBtn">Upgrade for $10 - Full Access</button>
+            </div>
+            
+            <div id="accessControl">
+                <label for="gameAccess">Game Access Control:</label>
+                <input type="range" id="gameAccess" min="0" max="100" value="100">
+                <span id="accessValue">100%</span>
+            </div>
+        </div>
+
+        <div id="scoreboard">
+            <div id="stats">
+                <span class="stat" id="skulls">💀 Skulls: 0</span>
+                <span class="stat" id="coins">🪙 Coins: 0</span>
+                <span class="stat" id="level">⚡ Level: 1</span>
+                <span class="stat" id="health">❤️ Health: 100</span>
+            </div>
+        </div>
+
+        <div id="gameArea">
+            <canvas id="gameCanvas"></canvas>
+            <div id="gameOverlay" style="display: none;">
+                <div id="gameOverContent">
+                    <h2>Game Over!</h2>
+                    <p>Final Score: <span id="finalScore">0</span></p>
+                    <button id="playAgain">Play Again</button>
+                    <button id="upgradeNow">Upgrade Now - $10</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <h3>Controls:</h3>
+            <p>WASD or Arrow Keys: Move</p>
+            <p>SPACE: Attack (Fireball)</p>
+            <p>Mouse: Aim and Click to Attack</p>
+        </div>
+
+        <div id="paymentModal" style="display: none;">
+            <div id="paymentContent">
+                <h3>Upgrade to Full Version</h3>
+                <p>Get unlimited access for just $10!</p>
+                <div id="paymentOptions">
+                    <button id="cashAppPay">Pay with Cash App - $10</button>
+                    <button id="paypalPay">Pay with PayPal - $10</button>
+                </div>
+                <button id="closePayment">Close</button>
+            </div>
+        </div>
+
+        <div id="characterCustomization">
+            <h3>Character Customization</h3>
+            <div id="characterOptions">
+                <button class="characterBtn" data-character="default">Default</button>
+                <button class="characterBtn" data-character="warrior">Warrior</button>
+                <button class="characterBtn" data-character="mage">Mage</button>
+                <button class="characterBtn" data-character="ninja">Ninja</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 Justin Devon Mitchell Entertainment. All rights reserved.</p>
+            <p>Contact: 769-341-8531 | Entertainment Business Student</p>
+        </footer>
+    </div>
+
+    <audio id="gameAudio" loop>
+        <source src="c68ad71f-50e6-4505-b0db-38958a1bb532.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="app.js"></script>
+</body>
+</html>
