@@ -1,0 +1,367 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #0f0f23, #1a1a3a, #2d2d5f);
+    font-family: 'Orbitron', monospace;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+#gameContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 15px;
+    border: 2px solid #00ffff;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-shadow: 0 0 10px #00ffff;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #00ffff, #ff00ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#contactInfo {
+    font-size: 1.1rem;
+    color: #00ffff;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+#monetizationPanel {
+    background: rgba(255, 0, 0, 0.1);
+    border: 2px solid #ff0000;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#trialInfo h3 {
+    color: #ff6b6b;
+    margin-bottom: 10px;
+    font-size: 1.3rem;
+}
+
+#trialTimer {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: #ffff00;
+}
+
+#upgradeBtn, #upgradeNow {
+    background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+#upgradeBtn:hover, #upgradeNow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+}
+
+#accessControl {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+#gameAccess {
+    width: 200px;
+    height: 8px;
+    background: #333;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+}
+
+#gameAccess::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #00ffff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+#scoreboard {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+}
+
+#stats {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.stat {
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-shadow: 0 0 5px currentColor;
+}
+
+#gameArea {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+#gameCanvas {
+    background: linear-gradient(180deg, #87CEEB 0%, #4682B4 50%, #1e3c72 100%);
+    border: 3px solid #fff;
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+    width: 800px;
+    height: 500px;
+    max-width: 100%;
+}
+
+#gameOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+}
+
+#gameOverContent {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px solid #ff0000;
+}
+
+#gameOverContent h2 {
+    font-size: 2rem;
+    color: #ff6b6b;
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px #ff6b6b;
+}
+
+#playAgain {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 10px;
+    transition: all 0.3s;
+}
+
+#playAgain:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+}
+
+#controls {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 2px solid #ffff00;
+}
+
+#controls h3 {
+    color: #ffff00;
+    margin-bottom: 10px;
+    font-size: 1.3rem;
+}
+
+#controls p {
+    margin: 5px 0;
+    font-size: 1rem;
+}
+
+#paymentModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+#paymentContent {
+    background: linear-gradient(135deg, #1a1a3a, #2d2d5f);
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px solid #00ffff;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+}
+
+#paymentContent h3 {
+    color: #00ffff;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+#paymentOptions {
+    margin: 20px 0;
+}
+
+#cashAppPay, #paypalPay {
+    background: linear-gradient(45deg, #00ff00, #32cd32);
+    border: none;
+    padding: 12px 20px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 10px;
+    transition: all 0.3s;
+    width: 200px;
+}
+
+#cashAppPay:hover, #paypalPay:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 255, 0, 0.5);
+}
+
+#closePayment {
+    background: #666;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+#characterCustomization {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 2px solid #ff00ff;
+}
+
+#characterCustomization h3 {
+    color: #ff00ff;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#characterOptions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.characterBtn {
+    background: linear-gradient(45deg, #ff00ff, #8a2be2);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.characterBtn:hover, .characterBtn.active {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    border-top: 2px solid #00ffff;
+    margin-top: 20px;
+}
+
+footer p {
+    margin: 5px 0;
+    color: #ccc;
+}
+
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.8rem;
+    }
+    
+    #gameCanvas {
+        width: 100%;
+        height: 400px;
+    }
+    
+    #stats {
+        justify-content: center;
+    }
+    
+    .stat {
+        font-size: 1rem;
+    }
+    
+    #characterOptions {
+        justify-content: center;
+    }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.glow {
+    box-shadow: 0 0 20px currentColor;
+}
