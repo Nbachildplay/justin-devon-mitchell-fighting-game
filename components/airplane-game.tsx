@@ -37,14 +37,6 @@ interface Explosion {
   frame: number
 }
 
-interface XRController {
-  x: number
-  y: number
-  rotation: number
-  isDragging: boolean
-  isVR: boolean
-}
-
 interface DrumStick {
   x: number
   y: number
@@ -254,6 +246,25 @@ class GameAudio {
     oscillator.stop(this.audioContext.currentTime + 0.2)
   }
 
+  playDrumHit() {
+    if (!this.audioContext || this.isMuted) return
+
+    const oscillator = this.audioContext.createOscillator()
+    const gainNode = this.audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(this.audioContext.destination)
+
+    oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(50, this.audioContext.currentTime + 0.3)
+
+    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3)
+
+    oscillator.start(this.audioContext.currentTime)
+    oscillator.stop(this.audioContext.currentTime + 0.3)
+  }
+
   toggleMute() {
     this.isMuted = !this.isMuted
     if (this.backgroundMusic) {
@@ -283,67 +294,17 @@ class GameAudio {
   }
 }
 
-class XRGameAudio extends GameAudio {
-  private xrSession: any = null
-  private isXRSupported = false
-
-  async initXR() {
-    try {
-      if ("xr" in navigator) {
-        this.isXRSupported = await (navigator as any).xr.isSessionSupported("immersive-vr")
-        console.log("[v0] XR Support:", this.isXRSupported)
-      }
-    } catch (error) {
-      console.log("[v0] XR not supported:", error)
-    }
-  }
-
-  async startXRSession() {
-    if (!this.isXRSupported) return false
-
-    try {
-      this.xrSession = await (navigator as any).xr.requestSession("immersive-vr")
-      console.log("[v0] XR Session started")
-      return true
-    } catch (error) {
-      console.log("[v0] XR Session failed:", error)
-      return false
-    }
-  }
-
-  playDrumHit() {
-    if (!this.audioContext || this.isMuted) return
-
-    const oscillator = this.audioContext.createOscillator()
-    const gainNode = this.audioContext.createGain()
-
-    oscillator.connect(gainNode)
-    gainNode.connect(this.audioContext.destination)
-
-    oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime)
-    oscillator.frequency.exponentialRampToValueAtTime(50, this.audioContext.currentTime + 0.3)
-
-    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3)
-
-    oscillator.start(this.audioContext.currentTime)
-    oscillator.stop(this.audioContext.currentTime + 0.3)
-  }
-}
-
 export default function AirplaneGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameLoopRef = useRef<number>()
   const keysRef = useRef<Set<string>>(new Set())
-  const audioRef = useRef<XRGameAudio>(new XRGameAudio())
+  const audioRef = useRef<GameAudio>(new GameAudio())
 
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
   const [score, setScore] = useState(0)
   const [coinsCollected, setCoinsCollected] = useState(0)
   const [highScore, setHighScore] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
-  const [isXRMode, setIsXRMode] = useState(false)
-  const [xrSupported, setXRSupported] = useState(false)
   const [drumSticks, setDrumSticks] = useState<DrumStick[]>([
     { x: 100, y: 400, rotation: 0, length: 80, isDragging: false },
     { x: 700, y: 400, rotation: 0, length: 80, isDragging: false },
@@ -368,9 +329,6 @@ export default function AirplaneGame() {
 
   useEffect(() => {
     audioRef.current.init()
-    audioRef.current.initXR().then(() => {
-      setXRSupported(audioRef.current.isXRSupported)
-    })
   }, [])
 
   const initGame = useCallback(() => {
@@ -449,11 +407,7 @@ export default function AirplaneGame() {
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
 
-    if (isXRMode) {
-      ctx.fillStyle = "rgba(75, 0, 130, 0.3)" // Purple tint for VR
-    } else {
-      ctx.fillStyle = "rgba(135, 206, 235, 0.3)"
-    }
+    ctx.fillStyle = "rgba(135, 206, 235, 0.3)"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     const player = playerRef.current
@@ -633,16 +587,10 @@ export default function AirplaneGame() {
       }
     })
 
-    if (isXRMode) {
-      ctx.fillStyle = "#9400D3"
-      ctx.font = "16px Arial"
-      ctx.fillText("VR MODE ACTIVE", canvas.width - 150, 60)
-    }
-
     if (gameState === "playing") {
       gameLoopRef.current = requestAnimationFrame(gameLoop)
     }
-  }, [gameState, score, coinsCollected, highScore, isXRMode, drumSticks])
+  }, [gameState, score, coinsCollected, highScore, drumSticks])
 
   const handleDrumStickMouseDown = useCallback((index: number, e: React.MouseEvent) => {
     e.preventDefault()
@@ -700,20 +648,6 @@ export default function AirplaneGame() {
     },
     [drumSticks],
   )
-
-  const toggleXRMode = async () => {
-    if (!xrSupported) {
-      alert("XR/VR not supported on this device")
-      return
-    }
-
-    if (!isXRMode) {
-      const success = await audioRef.current.startXRSession()
-      setIsXRMode(success)
-    } else {
-      setIsXRMode(false)
-    }
-  }
 
   const toggleMute = () => {
     const muted = audioRef.current.toggleMute()
@@ -774,11 +708,10 @@ export default function AirplaneGame() {
     setGameState("playing")
 
     if (!isMuted) {
-      // To add your YouTube song:
-      // 1. Convert the YouTube video to MP3 using a converter
-      // 2. Save it as "background-music.mp3" in the public folder
-      // 3. Uncomment the line below:
-      // audioRef.current.loadCustomMusic("/background-music.mp3")
+      // To add your song:
+      // 1. Save your MP3 as "justin-devon-mitchell-story.mp3" in the public folder
+      // 2. Uncomment the line below:
+      // audioRef.current.loadCustomMusic("/justin-devon-mitchell-story.mp3")
     }
   }
 
@@ -786,13 +719,8 @@ export default function AirplaneGame() {
     <div className="flex flex-col items-center gap-4">
       <Card className="p-6 bg-white/90 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-gray-800">Sky Fighter {isXRMode ? "VR" : ""}</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Sky Fighter</h1>
           <div className="flex gap-2">
-            {xrSupported && (
-              <Button onClick={toggleXRMode} variant="outline" size="sm" className="bg-purple-100">
-                {isXRMode ? "Exit VR" : "Enter VR"}
-              </Button>
-            )}
             <Button onClick={toggleMute} variant="outline" size="sm" className="ml-4 bg-transparent">
               {isMuted ? "🔇" : "🔊"}
             </Button>
@@ -804,21 +732,20 @@ export default function AirplaneGame() {
             <p className="text-gray-600">Use arrow keys to move, spacebar to shoot!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
             <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
-            {xrSupported && (
-              <p className="text-sm text-purple-600">🥽 VR/XR supported! Click "Enter VR" for immersive experience</p>
-            )}
             <div className="text-xs text-gray-400 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
-              <p className="font-semibold mb-1">🎵 To add your YouTube song:</p>
-              <p>1. Use a YouTube to MP3 converter to download your song</p>
-              <p>2. Save it as "background-music.mp3" in the public folder</p>
-              <p>3. Uncomment the loadCustomMusic line in the code</p>
+              <p className="font-semibold mb-1">🎵 To add your song:</p>
+              <p>1. Save your MP3 as "justin-devon-mitchell-story.mp3" in the public folder</p>
+              <p>2. Uncomment the loadCustomMusic line in the startGame function</p>
               <p className="mt-2 font-semibold">🔗 Shareable Link:</p>
-              <p>Once the game loads, copy the preview URL from your browser!</p>
+              <p>Copy the preview URL from your browser to share the game!</p>
             </div>
             <Button onClick={startGame} size="lg">
               Start Game
             </Button>
             {highScore > 0 && <p className="text-sm text-gray-500">High Score: {highScore}</p>}
+            <div className="text-xs text-center mt-4 text-gray-500 bg-gray-100 p-2 rounded">
+              Created by <span className="font-semibold text-blue-600">Justin Devon Mitchell</span>
+            </div>
           </div>
         )}
 
@@ -831,6 +758,9 @@ export default function AirplaneGame() {
             <Button onClick={startGame} size="lg">
               Play Again
             </Button>
+            <div className="text-xs text-center mt-4 text-gray-500">
+              Created by <span className="font-semibold text-blue-600">Justin Devon Mitchell</span>
+            </div>
           </div>
         )}
       </Card>
@@ -840,7 +770,7 @@ export default function AirplaneGame() {
           ref={canvasRef}
           width={800}
           height={600}
-          className={`border-4 border-white rounded-lg shadow-2xl ${isXRMode ? "bg-gradient-to-b from-purple-400 to-purple-600" : "bg-gradient-to-b from-sky-300 to-sky-500"}`}
+          className="border-4 border-white rounded-lg shadow-2xl bg-gradient-to-b from-sky-300 to-sky-500"
           style={{ display: gameState === "playing" ? "block" : "none" }}
         />
 
@@ -867,7 +797,6 @@ export default function AirplaneGame() {
       {gameState === "playing" && (
         <div className="text-white text-center">
           <p className="text-sm">Arrow keys: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
-          {isXRMode && <p className="text-purple-200">🥽 VR Mode Active - Enhanced immersion!</p>}
         </div>
       )}
     </div>
