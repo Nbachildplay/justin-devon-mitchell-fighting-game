@@ -407,7 +407,7 @@ export default function AirplaneGame() {
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
 
-    ctx.fillStyle = "rgba(135, 206, 235, 0.3)"
+    ctx.fillStyle = "linear-gradient(to bottom, #87CEEB, #E0F6FF)"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     const player = playerRef.current
@@ -510,17 +510,64 @@ export default function AirplaneGame() {
       }
     }
 
+    ctx.save()
+
+    // Player airplane body (blue)
     ctx.fillStyle = "#2563eb"
-    ctx.fillRect(player.x, player.y, player.width, player.height)
+    ctx.fillRect(player.x + 15, player.y + 5, 10, 20)
+
+    // Player airplane wings (darker blue)
     ctx.fillStyle = "#1d4ed8"
-    ctx.fillRect(player.x + 5, player.y - 5, 30, 10)
-    ctx.fillRect(player.x + 15, player.y + 25, 10, 8)
+    ctx.fillRect(player.x, player.y + 10, 40, 8)
+
+    // Player airplane nose (light blue)
+    ctx.fillStyle = "#60a5fa"
+    ctx.fillRect(player.x + 17, player.y, 6, 8)
+
+    // Player airplane tail (dark blue)
+    ctx.fillStyle = "#1e40af"
+    ctx.fillRect(player.x + 12, player.y + 22, 16, 6)
+
+    // Player airplane propeller (yellow)
+    ctx.fillStyle = "#fbbf24"
+    ctx.fillRect(player.x + 18, player.y - 2, 4, 4)
+
+    // Player airplane outline (black)
+    ctx.strokeStyle = "#000000"
+    ctx.lineWidth = 1
+    ctx.strokeRect(player.x, player.y, player.width, player.height)
+
+    ctx.restore()
 
     enemies.forEach((enemy) => {
+      ctx.save()
+
+      // Enemy airplane body
       ctx.fillStyle = enemy.type === "fast" ? "#dc2626" : "#7c2d12"
-      ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height)
+      ctx.fillRect(enemy.x + 10, enemy.y + 5, 10, 15)
+
+      // Enemy airplane wings
       ctx.fillStyle = enemy.type === "fast" ? "#b91c1c" : "#92400e"
-      ctx.fillRect(enemy.x + 5, enemy.y + 20, 20, 8)
+      ctx.fillRect(enemy.x, enemy.y + 8, 30, 6)
+
+      // Enemy airplane nose
+      ctx.fillStyle = enemy.type === "fast" ? "#ef4444" : "#a16207"
+      ctx.fillRect(enemy.x + 12, enemy.y + 18, 6, 5)
+
+      // Enemy airplane tail
+      ctx.fillStyle = enemy.type === "fast" ? "#991b1b" : "#713f12"
+      ctx.fillRect(enemy.x + 8, enemy.y + 2, 14, 5)
+
+      // Enemy airplane propeller
+      ctx.fillStyle = "#374151"
+      ctx.fillRect(enemy.x + 13, enemy.y + 20, 4, 3)
+
+      // Enemy airplane outline
+      ctx.strokeStyle = "#000000"
+      ctx.lineWidth = 1
+      ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height)
+
+      ctx.restore()
     })
 
     bullets.forEach((bullet) => {
