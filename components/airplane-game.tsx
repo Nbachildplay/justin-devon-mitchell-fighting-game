@@ -453,7 +453,10 @@ export default function AirplaneGame() {
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
 
-    ctx.fillStyle = "linear-gradient(to bottom, #87CEEB, #E0F6FF)"
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    gradient.addColorStop(0, "#87CEEB")
+    gradient.addColorStop(1, "#E0F6FF")
+    ctx.fillStyle = gradient
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     const player = playerRef.current
@@ -688,10 +691,6 @@ export default function AirplaneGame() {
         ctx.stroke()
       }
     })
-
-    if (gameState === "playing") {
-      gameLoopRef.current = requestAnimationFrame(gameLoop)
-    }
   }, [gameState, score, coinsCollected, highScore, drumSticks])
 
   const handleDrumStickMouseDown = useCallback((index: number, e: React.MouseEvent) => {
@@ -819,6 +818,20 @@ export default function AirplaneGame() {
       window.removeEventListener("mouseup", handleDrumStickMouseUp)
     }
   }, [gameState, handleDrumStickMouseMove, handleDrumStickMouseUp, handleDrumHit])
+
+  useEffect(() => {
+    if (gameState === "playing") {
+      gameLoopRef.current = requestAnimationFrame(gameLoop)
+    } else if (gameLoopRef.current) {
+      cancelAnimationFrame(gameLoopRef.current)
+    }
+
+    return () => {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current)
+      }
+    }
+  }, [gameState, gameLoop])
 
   const startGame = () => {
     audioRef.current.resume()
