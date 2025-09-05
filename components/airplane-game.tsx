@@ -20,6 +20,7 @@ interface Player extends GameObject {
 
 interface Enemy extends GameObject {
   type: "basic" | "fast"
+  lastShot: number
 }
 
 interface Bullet extends GameObject {
@@ -475,6 +476,7 @@ export default function AirplaneGame() {
         height: 25,
         speed: enemyType === "fast" ? 4 : 2,
         type: enemyType,
+        lastShot: now,
       }
       enemiesRef.current.push(enemy)
       lastEnemySpawnRef.current = now
@@ -497,6 +499,22 @@ export default function AirplaneGame() {
       }
       coinsRef.current.push(coin)
       lastCoinSpawnRef.current = now
+    }
+  }
+
+  const spawnEnemyBullet = (enemy: Enemy) => {
+    const now = Date.now()
+    if (now - enemy.lastShot > 1500) {
+      // Enemy shoots every 1.5 seconds
+      bulletsRef.current.push({
+        x: enemy.x + enemy.width / 2 - 2,
+        y: enemy.y + enemy.height,
+        width: 3,
+        height: 8,
+        speed: 4,
+        isPlayerBullet: false,
+      })
+      enemy.lastShot = now
     }
   }
 
@@ -569,12 +587,38 @@ export default function AirplaneGame() {
         if (bullet.y < 0) {
           bullets.splice(i, 1)
         }
+      } else {
+        bullet.y += bullet.speed
+        if (bullet.y > canvas.height) {
+          bullets.splice(i, 1)
+          continue
+        }
+
+        if (checkCollision(player, bullet)) {
+          bullets.splice(i, 1)
+          explosions.push({ x: player.x, y: player.y, frame: 0 })
+          audioRef.current.playHitSound()
+          player.health--
+
+          if (player.health <= 0) {
+            setGameState("gameOver")
+            if (score > highScore) {
+              setHighScore(score)
+            }
+            return
+          }
+        }
       }
     }
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const enemy = enemies[i]
       enemy.y += enemy.speed
+
+      if (Math.random() < 0.003) {
+        // 0.3% chance per frame to shoot
+        spawnEnemyBullet(enemy)
+      }
 
       if (enemy.y > canvas.height) {
         enemies.splice(i, 1)
@@ -704,12 +748,26 @@ export default function AirplaneGame() {
     })
 
     bullets.forEach((bullet) => {
-      ctx.fillStyle = bullet.isPlayerBullet ? "#fbbf24" : "#ef4444"
-      ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+      ctx.save()
+
       if (bullet.isPlayerBullet) {
-        ctx.fillStyle = "rgba(251, 191, 36, 0.5)"
-        ctx.fillRect(bullet.x - 1, bullet.y + 5, bullet.width + 2, bullet.height)
+        // Player bullets (blue)
+        ctx.fillStyle = "#3b82f6"
+        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+
+        // Bullet trail effect
+        ctx.fillStyle = "#60a5fa"
+        ctx.fillRect(bullet.x + 1, bullet.y + bullet.height, bullet.width - 2, 3)
+      } else {
+        ctx.fillStyle = "#dc2626"
+        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+
+        // Enemy bullet trail
+        ctx.fillStyle = "#f87171"
+        ctx.fillRect(bullet.x + 1, bullet.y - 3, bullet.width - 2, 3)
       }
+
+      ctx.restore()
     })
 
     coins.forEach((coin) => {
@@ -965,7 +1023,7 @@ export default function AirplaneGame() {
             </div>
 
             <div className="text-sm text-gray-700 bg-red-50 p-3 rounded border">
-              <p className="font-semibold">⚔️ BATTLE MECHANICS:</p>
+              <p className="font-semibold text-red-600">⚔️ BATTLE MECHANICS:</p>
               <p>• Fast enemies (red) = 20 points • Basic enemies (brown) = 10 points</p>
               <p>• Drum stick hits = 30/15 bonus points • Golden coins = 50 points</p>
               <p>• Survive the increasingly intense enemy waves!</p>
