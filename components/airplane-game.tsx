@@ -373,6 +373,58 @@ export default function AirplaneGame() {
   const lastCoinSpawnRef = useRef(0)
   const gameTimeRef = useRef(0)
 
+  const [touchControls, setTouchControls] = useState({
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    shoot: false,
+  })
+
+  const handleTouchStart = (direction: string) => {
+    if (direction === "shoot") {
+      // Simulate spacebar press for shooting
+      const player = playerRef.current
+      if (gameState === "playing") {
+        bulletsRef.current.push({
+          x: player.x + player.width / 2 - 2,
+          y: player.y,
+          width: 4,
+          height: 10,
+          speed: 8,
+          isPlayerBullet: true,
+        })
+        audioRef.current.playShootSound()
+      }
+    } else {
+      // Add movement keys to simulate keyboard input
+      const keyMap: { [key: string]: string } = {
+        left: "ArrowLeft",
+        right: "ArrowRight",
+        up: "ArrowUp",
+        down: "ArrowDown",
+      }
+      keysRef.current.add(keyMap[direction])
+    }
+
+    setTouchControls((prev) => ({ ...prev, [direction]: true }))
+  }
+
+  const handleTouchEnd = (direction: string) => {
+    if (direction !== "shoot") {
+      // Remove movement keys
+      const keyMap: { [key: string]: string } = {
+        left: "ArrowLeft",
+        right: "ArrowRight",
+        up: "ArrowUp",
+        down: "ArrowDown",
+      }
+      keysRef.current.delete(keyMap[direction])
+    }
+
+    setTouchControls((prev) => ({ ...prev, [direction]: false }))
+  }
+
   useEffect(() => {
     audioRef.current.init()
   }, [])
@@ -490,6 +542,19 @@ export default function AirplaneGame() {
       player.y = Math.max(0, player.y - moveSpeed)
     }
     if (keysRef.current.has("KeyS") && player.y < canvas.height - player.height) {
+      player.y = Math.min(canvas.height - player.height, player.y + moveSpeed)
+    }
+
+    if (touchControls.left && player.x > 0) {
+      player.x = Math.max(0, player.x - moveSpeed)
+    }
+    if (touchControls.right && player.x < canvas.width - player.width) {
+      player.x = Math.min(canvas.width - player.width, player.x + moveSpeed)
+    }
+    if (touchControls.up && player.y > 0) {
+      player.y = Math.max(0, player.y - moveSpeed)
+    }
+    if (touchControls.down && player.y < canvas.height - player.height) {
       player.y = Math.min(canvas.height - player.height, player.y + moveSpeed)
     }
 
@@ -878,6 +943,7 @@ export default function AirplaneGame() {
           <div className="text-center space-y-4">
             <p className="text-gray-600 font-semibold">🚀 INTENSE AIRPLANE BATTLE! 🚀</p>
             <p className="text-gray-600">Use arrow keys OR WASD to move, spacebar to shoot!</p>
+            <p className="text-gray-600 md:hidden">Touch controls available on mobile!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
             <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
 
@@ -964,7 +1030,7 @@ export default function AirplaneGame() {
           width={800}
           height={600}
           className="border-4 border-white rounded-lg shadow-2xl bg-gradient-to-b from-sky-300 to-sky-500"
-          style={{ display: gameState === "playing" ? "block" : "none" }}
+          style={{ display: gameState === "playing" ? "block" : "none", touchAction: "none" }}
         />
 
         {gameState === "playing" &&
@@ -985,11 +1051,160 @@ export default function AirplaneGame() {
               <div className="w-full h-full bg-transparent hover:bg-yellow-300/30 rounded-full border-2 border-yellow-400/50" />
             </div>
           ))}
+
+        <div className="md:hidden absolute inset-0 pointer-events-none">
+          {/* Left side - Movement controls */}
+          <div className="absolute bottom-4 left-4 pointer-events-auto">
+            <div className="relative w-32 h-32">
+              {/* Up button */}
+              <button
+                className={`absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-lg ${
+                  touchControls.up ? "bg-blue-600" : "bg-blue-500"
+                } text-white font-bold shadow-lg active:scale-95 transition-all`}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("up")
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("up")
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("up")
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("up")
+                }}
+              >
+                ↑
+              </button>
+
+              {/* Left button */}
+              <button
+                className={`absolute top-1/2 left-0 transform -translate-y-1/2 w-12 h-12 rounded-lg ${
+                  touchControls.left ? "bg-blue-600" : "bg-blue-500"
+                } text-white font-bold shadow-lg active:scale-95 transition-all`}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("left")
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("left")
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("left")
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("left")
+                }}
+              >
+                ←
+              </button>
+
+              {/* Right button */}
+              <button
+                className={`absolute top-1/2 right-0 transform -translate-y-1/2 w-12 h-12 rounded-lg ${
+                  touchControls.right ? "bg-blue-600" : "bg-blue-500"
+                } text-white font-bold shadow-lg active:scale-95 transition-all`}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("right")
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("right")
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("right")
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("right")
+                }}
+              >
+                →
+              </button>
+
+              {/* Down button */}
+              <button
+                className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-lg ${
+                  touchControls.down ? "bg-blue-600" : "bg-blue-500"
+                } text-white font-bold shadow-lg active:scale-95 transition-all`}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("down")
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("down")
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("down")
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("down")
+                }}
+              >
+                ↓
+              </button>
+            </div>
+          </div>
+
+          {/* Right side - Action controls */}
+          <div className="absolute bottom-4 right-4 pointer-events-auto">
+            <div className="flex flex-col gap-3">
+              {/* Shoot button */}
+              <button
+                className={`w-16 h-16 rounded-full ${
+                  touchControls.shoot ? "bg-red-600" : "bg-red-500"
+                } text-white font-bold shadow-lg active:scale-95 transition-all`}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("shoot")
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("shoot")
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleTouchStart("shoot")
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault()
+                  handleTouchEnd("shoot")
+                }}
+              >
+                🔥
+              </button>
+
+              {/* Mute button */}
+              <button
+                className="w-12 h-12 rounded-full bg-gray-500 text-white font-bold shadow-lg active:scale-95 transition-all"
+                onClick={() => {
+                  const muted = audioRef.current.toggleMute()
+                  setIsMuted(muted)
+                }}
+              >
+                {isMuted ? "🔇" : "🔊"}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {gameState === "playing" && (
         <div className="text-white text-center">
           <p className="text-sm">Arrow Keys OR WASD: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
+          <p className="text-sm md:hidden">Mobile: Touch D-pad to move | Fire button to shoot</p>
           <div className="flex justify-center gap-4 mt-2 text-sm">
             <span>Score: {score}</span>
             <span>Coins: {coinsCollected}</span>
