@@ -10,10 +10,15 @@ export default function BasketballPage() {
             href="/"
             className="bg-slate-900/80 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors font-medium"
           >
-            ← Play Airplane Game
+            ← ✈️ Sky Fighter
           </Link>
-          <h1 className="text-4xl font-bold text-slate-900 text-center">Basketball Shooter Pro</h1>
-          <div className="w-32"></div> {/* Spacer for centering */}
+          <h1 className="text-4xl font-bold text-slate-900 text-center">Boxing Battle Arena</h1>
+          <Link
+            href="/tennis"
+            className="bg-slate-900/80 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+          >
+            🎾 Tennis →
+          </Link>
         </div>
         <p className="text-slate-900 text-center mb-4 font-medium">Created by Justin Devon Mitchell</p>
         <BasketballGame />
