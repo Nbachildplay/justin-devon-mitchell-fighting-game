@@ -465,17 +465,32 @@ export default function AirplaneGame() {
     const coins = coinsRef.current
     const explosions = explosionsRef.current
 
+    const moveSpeed = 7 // Increased speed for better responsiveness
+
     if (keysRef.current.has("ArrowLeft") && player.x > 0) {
-      player.x -= player.speed + 1
+      player.x = Math.max(0, player.x - moveSpeed)
     }
     if (keysRef.current.has("ArrowRight") && player.x < canvas.width - player.width) {
-      player.x += player.speed + 1
+      player.x = Math.min(canvas.width - player.width, player.x + moveSpeed)
     }
     if (keysRef.current.has("ArrowUp") && player.y > 0) {
-      player.y -= player.speed + 1
+      player.y = Math.max(0, player.y - moveSpeed)
     }
     if (keysRef.current.has("ArrowDown") && player.y < canvas.height - player.height) {
-      player.y += player.speed + 1
+      player.y = Math.min(canvas.height - player.height, player.y + moveSpeed)
+    }
+
+    if (keysRef.current.has("KeyA") && player.x > 0) {
+      player.x = Math.max(0, player.x - moveSpeed)
+    }
+    if (keysRef.current.has("KeyD") && player.x < canvas.width - player.width) {
+      player.x = Math.min(canvas.width - player.width, player.x + moveSpeed)
+    }
+    if (keysRef.current.has("KeyW") && player.y > 0) {
+      player.y = Math.max(0, player.y - moveSpeed)
+    }
+    if (keysRef.current.has("KeyS") && player.y < canvas.height - player.height) {
+      player.y = Math.min(canvas.height - player.height, player.y + moveSpeed)
     }
 
     spawnEnemy(canvas)
@@ -862,7 +877,7 @@ export default function AirplaneGame() {
         {gameState === "menu" && (
           <div className="text-center space-y-4">
             <p className="text-gray-600 font-semibold">🚀 INTENSE AIRPLANE BATTLE! 🚀</p>
-            <p className="text-gray-600">Use arrow keys to move, spacebar to shoot!</p>
+            <p className="text-gray-600">Use arrow keys OR WASD to move, spacebar to shoot!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
             <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
 
@@ -974,7 +989,7 @@ export default function AirplaneGame() {
 
       {gameState === "playing" && (
         <div className="text-white text-center">
-          <p className="text-sm">Arrow keys: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
+          <p className="text-sm">Arrow Keys OR WASD: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
           <div className="flex justify-center gap-4 mt-2 text-sm">
             <span>Score: {score}</span>
             <span>Coins: {coinsCollected}</span>
