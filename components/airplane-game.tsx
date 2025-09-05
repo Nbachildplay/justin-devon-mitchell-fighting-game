@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -33,6 +35,22 @@ interface Explosion {
   x: number
   y: number
   frame: number
+}
+
+interface XRController {
+  x: number
+  y: number
+  rotation: number
+  isDragging: boolean
+  isVR: boolean
+}
+
+interface DrumStick {
+  x: number
+  y: number
+  rotation: number
+  length: number
+  isDragging: boolean
 }
 
 class GameAudio {
@@ -265,17 +283,71 @@ class GameAudio {
   }
 }
 
+class XRGameAudio extends GameAudio {
+  private xrSession: any = null
+  private isXRSupported = false
+
+  async initXR() {
+    try {
+      if ("xr" in navigator) {
+        this.isXRSupported = await (navigator as any).xr.isSessionSupported("immersive-vr")
+        console.log("[v0] XR Support:", this.isXRSupported)
+      }
+    } catch (error) {
+      console.log("[v0] XR not supported:", error)
+    }
+  }
+
+  async startXRSession() {
+    if (!this.isXRSupported) return false
+
+    try {
+      this.xrSession = await (navigator as any).xr.requestSession("immersive-vr")
+      console.log("[v0] XR Session started")
+      return true
+    } catch (error) {
+      console.log("[v0] XR Session failed:", error)
+      return false
+    }
+  }
+
+  playDrumHit() {
+    if (!this.audioContext || this.isMuted) return
+
+    const oscillator = this.audioContext.createOscillator()
+    const gainNode = this.audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(this.audioContext.destination)
+
+    oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(50, this.audioContext.currentTime + 0.3)
+
+    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3)
+
+    oscillator.start(this.audioContext.currentTime)
+    oscillator.stop(this.audioContext.currentTime + 0.3)
+  }
+}
+
 export default function AirplaneGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const gameLoopRef = useRef<number>()
   const keysRef = useRef<Set<string>>(new Set())
-  const audioRef = useRef<GameAudio>(new GameAudio())
+  const audioRef = useRef<XRGameAudio>(new XRGameAudio())
 
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameOver">("menu")
   const [score, setScore] = useState(0)
   const [coinsCollected, setCoinsCollected] = useState(0)
   const [highScore, setHighScore] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
+  const [isXRMode, setIsXRMode] = useState(false)
+  const [xrSupported, setXRSupported] = useState(false)
+  const [drumSticks, setDrumSticks] = useState<DrumStick[]>([
+    { x: 100, y: 400, rotation: 0, length: 80, isDragging: false },
+    { x: 700, y: 400, rotation: 0, length: 80, isDragging: false },
+  ])
 
   const playerRef = useRef<Player>({
     x: 400,
@@ -296,6 +368,9 @@ export default function AirplaneGame() {
 
   useEffect(() => {
     audioRef.current.init()
+    audioRef.current.initXR().then(() => {
+      setXRSupported(audioRef.current.isXRSupported)
+    })
   }, [])
 
   const initGame = useCallback(() => {
@@ -374,7 +449,11 @@ export default function AirplaneGame() {
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
 
-    ctx.fillStyle = "rgba(135, 206, 235, 0.3)"
+    if (isXRMode) {
+      ctx.fillStyle = "rgba(75, 0, 130, 0.3)" // Purple tint for VR
+    } else {
+      ctx.fillStyle = "rgba(135, 206, 235, 0.3)"
+    }
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     const player = playerRef.current
@@ -520,17 +599,126 @@ export default function AirplaneGame() {
       ctx.fillRect(explosion.x - size / 2, explosion.y - size / 2, size, size)
     })
 
-    ctx.fillStyle = "#ffffff"
-    ctx.font = "20px Arial"
-    ctx.fillText(`Score: ${score}`, 10, 30)
-    ctx.fillText(`Coins: ${coinsCollected}`, 10, 90)
-    ctx.fillText(`Health: ${player.health}`, 10, 60)
-    ctx.fillText(`High Score: ${highScore}`, canvas.width - 150, 30)
+    drumSticks.forEach((stick, index) => {
+      ctx.save()
+      ctx.translate(stick.x, stick.y)
+      ctx.rotate(stick.rotation)
+
+      // Drum stick handle
+      ctx.fillStyle = "#8B4513"
+      ctx.fillRect(-5, -5, stick.length, 10)
+
+      // Drum stick tip
+      ctx.fillStyle = "#FFD700"
+      ctx.beginPath()
+      ctx.arc(stick.length, 0, 8, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Grip
+      ctx.fillStyle = "#654321"
+      ctx.fillRect(-5, -3, 20, 6)
+
+      ctx.restore()
+
+      // Hit detection area (visual indicator)
+      if (stick.isDragging) {
+        const endX = stick.x + Math.cos(stick.rotation) * stick.length
+        const endY = stick.y + Math.sin(stick.rotation) * stick.length
+
+        ctx.strokeStyle = "rgba(255, 255, 0, 0.5)"
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.arc(endX, endY, 30, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+    })
+
+    if (isXRMode) {
+      ctx.fillStyle = "#9400D3"
+      ctx.font = "16px Arial"
+      ctx.fillText("VR MODE ACTIVE", canvas.width - 150, 60)
+    }
 
     if (gameState === "playing") {
       gameLoopRef.current = requestAnimationFrame(gameLoop)
     }
-  }, [gameState, score, coinsCollected, highScore])
+  }, [gameState, score, coinsCollected, highScore, isXRMode, drumSticks])
+
+  const handleDrumStickMouseDown = useCallback((index: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    setDrumSticks((prev) => prev.map((stick, i) => (i === index ? { ...stick, isDragging: true } : stick)))
+  }, [])
+
+  const handleDrumStickMouseMove = useCallback((e: MouseEvent) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    setDrumSticks((prev) =>
+      prev.map((stick) => {
+        if (stick.isDragging) {
+          const centerX = mouseX
+          const centerY = mouseY
+          const rotation = Math.atan2(mouseY - stick.y, mouseX - stick.x)
+
+          return { ...stick, x: centerX, y: centerY, rotation }
+        }
+        return stick
+      }),
+    )
+  }, [])
+
+  const handleDrumStickMouseUp = useCallback(() => {
+    setDrumSticks((prev) => prev.map((stick) => ({ ...stick, isDragging: false })))
+  }, [])
+
+  const handleDrumHit = useCallback(
+    (stickIndex: number) => {
+      audioRef.current.playDrumHit()
+
+      // Check if drum stick hits enemies or bullets
+      const stick = drumSticks[stickIndex]
+      const stickEndX = stick.x + Math.cos(stick.rotation) * stick.length
+      const stickEndY = stick.y + Math.sin(stick.rotation) * stick.length
+
+      enemiesRef.current = enemiesRef.current.filter((enemy) => {
+        const distance = Math.sqrt(
+          Math.pow(stickEndX - (enemy.x + enemy.width / 2), 2) + Math.pow(stickEndY - (enemy.y + enemy.height / 2), 2),
+        )
+
+        if (distance < 30) {
+          explosionsRef.current.push({ x: enemy.x, y: enemy.y, frame: 0 })
+          audioRef.current.playExplosionSound()
+          setScore((prev) => prev + (enemy.type === "fast" ? 30 : 15))
+          return false
+        }
+        return true
+      })
+    },
+    [drumSticks],
+  )
+
+  const toggleXRMode = async () => {
+    if (!xrSupported) {
+      alert("XR/VR not supported on this device")
+      return
+    }
+
+    if (!isXRMode) {
+      const success = await audioRef.current.startXRSession()
+      setIsXRMode(success)
+    } else {
+      setIsXRMode(false)
+    }
+  }
+
+  const toggleMute = () => {
+    const muted = audioRef.current.toggleMute()
+    setIsMuted(muted)
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -554,6 +742,13 @@ export default function AirplaneGame() {
         const muted = audioRef.current.toggleMute()
         setIsMuted(muted)
       }
+
+      if (e.code === "KeyQ") {
+        handleDrumHit(0) // Left drum stick
+      }
+      if (e.code === "KeyE") {
+        handleDrumHit(1) // Right drum stick
+      }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -562,26 +757,16 @@ export default function AirplaneGame() {
 
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("mousemove", handleDrumStickMouseMove)
+    window.addEventListener("mouseup", handleDrumStickMouseUp)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("mousemove", handleDrumStickMouseMove)
+      window.removeEventListener("mouseup", handleDrumStickMouseUp)
     }
-  }, [gameState])
-
-  useEffect(() => {
-    if (gameState === "playing") {
-      gameLoopRef.current = requestAnimationFrame(gameLoop)
-    } else if (gameLoopRef.current) {
-      cancelAnimationFrame(gameLoopRef.current)
-    }
-
-    return () => {
-      if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current)
-      }
-    }
-  }, [gameState, gameLoop])
+  }, [gameState, handleDrumStickMouseMove, handleDrumStickMouseUp, handleDrumHit])
 
   const startGame = () => {
     audioRef.current.resume()
@@ -597,25 +782,31 @@ export default function AirplaneGame() {
     }
   }
 
-  const toggleMute = () => {
-    const muted = audioRef.current.toggleMute()
-    setIsMuted(muted)
-  }
-
   return (
     <div className="flex flex-col items-center gap-4">
       <Card className="p-6 bg-white/90 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-gray-800">Sky Fighter</h1>
-          <Button onClick={toggleMute} variant="outline" size="sm" className="ml-4 bg-transparent">
-            {isMuted ? "🔇" : "🔊"}
-          </Button>
+          <h1 className="text-3xl font-bold text-gray-800">Sky Fighter {isXRMode ? "VR" : ""}</h1>
+          <div className="flex gap-2">
+            {xrSupported && (
+              <Button onClick={toggleXRMode} variant="outline" size="sm" className="bg-purple-100">
+                {isXRMode ? "Exit VR" : "Enter VR"}
+              </Button>
+            )}
+            <Button onClick={toggleMute} variant="outline" size="sm" className="ml-4 bg-transparent">
+              {isMuted ? "🔇" : "🔊"}
+            </Button>
+          </div>
         </div>
 
         {gameState === "menu" && (
           <div className="text-center space-y-4">
             <p className="text-gray-600">Use arrow keys to move, spacebar to shoot!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
+            <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
+            {xrSupported && (
+              <p className="text-sm text-purple-600">🥽 VR/XR supported! Click "Enter VR" for immersive experience</p>
+            )}
             <div className="text-xs text-gray-400 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
               <p className="font-semibold mb-1">🎵 To add your YouTube song:</p>
               <p>1. Use a YouTube to MP3 converter to download your song</p>
@@ -644,17 +835,39 @@ export default function AirplaneGame() {
         )}
       </Card>
 
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={600}
-        className="border-4 border-white rounded-lg shadow-2xl bg-gradient-to-b from-sky-300 to-sky-500"
-        style={{ display: gameState === "playing" ? "block" : "none" }}
-      />
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={600}
+          className={`border-4 border-white rounded-lg shadow-2xl ${isXRMode ? "bg-gradient-to-b from-purple-400 to-purple-600" : "bg-gradient-to-b from-sky-300 to-sky-500"}`}
+          style={{ display: gameState === "playing" ? "block" : "none" }}
+        />
+
+        {gameState === "playing" &&
+          drumSticks.map((stick, index) => (
+            <div
+              key={index}
+              className="absolute cursor-grab active:cursor-grabbing"
+              style={{
+                left: stick.x - 10,
+                top: stick.y - 10,
+                width: 20,
+                height: 20,
+                transform: `rotate(${stick.rotation}rad)`,
+                pointerEvents: "auto",
+              }}
+              onMouseDown={(e) => handleDrumStickMouseDown(index, e)}
+            >
+              <div className="w-full h-full bg-transparent hover:bg-yellow-300/30 rounded-full border-2 border-yellow-400/50" />
+            </div>
+          ))}
+      </div>
 
       {gameState === "playing" && (
         <div className="text-white text-center">
-          <p className="text-sm">Arrow keys: Move | Spacebar: Shoot | M: Toggle Sound | Collect Golden Coins!</p>
+          <p className="text-sm">Arrow keys: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
+          {isXRMode && <p className="text-purple-200">🥽 VR Mode Active - Enhanced immersion!</p>}
         </div>
       )}
     </div>

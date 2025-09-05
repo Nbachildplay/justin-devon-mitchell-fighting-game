@@ -168,9 +168,37 @@ class TennisAudio {
   }
 }
 
+class XRTennisAudio extends TennisAudio {
+  private xrSession: any = null
+  private isXRSupported = false
+
+  async initializeXR() {
+    await this.initialize()
+    try {
+      if ("xr" in navigator) {
+        this.isXRSupported = await (navigator as any).xr.isSessionSupported("immersive-vr")
+      }
+    } catch (error) {
+      console.log("XR not supported:", error)
+    }
+  }
+
+  async startXRSession() {
+    if (!this.isXRSupported) return false
+
+    try {
+      this.xrSession = await (navigator as any).xr.requestSession("immersive-vr")
+      return true
+    } catch (error) {
+      console.log("XR Session failed:", error)
+      return false
+    }
+  }
+}
+
 export default function TennisGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const audioRef = useRef<TennisAudio>(new TennisAudio())
+  const audioRef = useRef<XRTennisAudio>(new XRTennisAudio())
   const animationRef = useRef<number>()
   const gameStateRef = useRef<"menu" | "playing" | "gameOver" | "celebration">("menu")
 
@@ -224,6 +252,8 @@ export default function TennisGame() {
   const [touchControls, setTouchControls] = useState<{ [key: string]: boolean }>({})
   const [winner, setWinner] = useState<string>("")
   const [showCelebration, setShowCelebration] = useState(false)
+  const [isXRMode, setIsXRMode] = useState(false)
+  const [xrSupported, setXRSupported] = useState(false)
 
   const startGame = useCallback(() => {
     setGameState("playing")
@@ -306,35 +336,64 @@ export default function TennisGame() {
       return
     }
 
-    ctx.fillStyle = "#2D8B2D"
+    ctx.fillStyle = isXRMode ? "#1a5f1a" : "#2D8B2D"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Draw tennis court
     ctx.strokeStyle = "#FFFFFF"
-    ctx.lineWidth = 3
+    ctx.lineWidth = 4
 
-    // Court boundaries
-    ctx.strokeRect(50, 100, canvas.width - 100, canvas.height - 200)
+    const courtX = 50
+    const courtY = 100
+    const courtWidth = canvas.width - 100
+    const courtHeight = canvas.height - 200
 
-    // Net
-    ctx.fillStyle = "#FFFFFF"
-    ctx.fillRect(canvas.width / 2 - 2, 100, 4, canvas.height - 200)
+    ctx.strokeRect(courtX, courtY, courtWidth, courtHeight)
 
-    // Service boxes
+    const netX = canvas.width / 2 - 3
+    const netY = courtY
+    const netHeight = courtHeight
+
+    ctx.fillStyle = "#8B4513"
+    ctx.fillRect(netX - 5, netY - 10, 16, netHeight + 20)
+
+    ctx.strokeStyle = "#FFFFFF"
+    ctx.lineWidth = 2
+    for (let i = 0; i < netHeight; i += 20) {
+      ctx.beginPath()
+      ctx.moveTo(netX, netY + i)
+      ctx.lineTo(netX + 6, netY + i)
+      ctx.stroke()
+    }
+    for (let i = 0; i < 6; i += 2) {
+      ctx.beginPath()
+      ctx.moveTo(netX + i, netY)
+      ctx.lineTo(netX + i, netY + netHeight)
+      ctx.stroke()
+    }
+
+    ctx.strokeStyle = "#FFFFFF"
+    ctx.lineWidth = 2
+
+    const serviceLineY1 = courtY + courtHeight * 0.25
+    const serviceLineY2 = courtY + courtHeight * 0.75
+
     ctx.beginPath()
-    ctx.moveTo(canvas.width / 2, 100)
-    ctx.lineTo(canvas.width / 2, canvas.height - 100)
+    ctx.moveTo(courtX, serviceLineY1)
+    ctx.lineTo(canvas.width / 2, serviceLineY1)
     ctx.stroke()
 
-    // Center service line
     ctx.beginPath()
-    ctx.moveTo(50, canvas.height / 2)
-    ctx.lineTo(canvas.width - 50, canvas.height / 2)
+    ctx.moveTo(canvas.width / 2, serviceLineY2)
+    ctx.lineTo(canvas.width - courtX, serviceLineY2)
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.moveTo(courtX, canvas.height / 2)
+    ctx.lineTo(canvas.width - courtX, canvas.height / 2)
     ctx.stroke()
 
     const allKeys = new Set([...keys, ...Object.keys(touchControls).filter((key) => touchControls[key])])
 
-    // Player 1 controls (WASD + Space to grab/hit)
     if ((allKeys.has("a") || allKeys.has("p1left")) && player1.x > 60) {
       setPlayer1((prev) => ({ ...prev, x: prev.x - 4 }))
     }
@@ -348,7 +407,6 @@ export default function TennisGame() {
       setPlayer1((prev) => ({ ...prev, y: prev.y + 4 }))
     }
 
-    // Player 2 controls (Arrow keys + Enter to grab/hit)
     if ((allKeys.has("arrowleft") || allKeys.has("p2left")) && player2.x > canvas.width / 2 + 10) {
       setPlayer2((prev) => ({ ...prev, x: prev.x - 4 }))
     }
@@ -362,7 +420,6 @@ export default function TennisGame() {
       setPlayer2((prev) => ({ ...prev, y: prev.y + 4 }))
     }
 
-    // Racket grabbing
     if (allKeys.has(" ") || allKeys.has("p1grab")) {
       const distance = Math.sqrt(
         Math.pow(player1.x + player1.width / 2 - (racket.x + racket.width / 2), 2) +
@@ -385,68 +442,76 @@ export default function TennisGame() {
       }
     }
 
-    // Update racket position if owned
     if (racket.owner === "player1") {
       setRacket((prev) => ({ ...prev, x: player1.x + 10, y: player1.y + 20 }))
     } else if (racket.owner === "player2") {
       setRacket((prev) => ({ ...prev, x: player2.x - 10, y: player2.y + 20 }))
     }
 
-    // Ball physics
     setBall((prev) => {
       const newX = prev.x + prev.vx
       let newY = prev.y + prev.vy
       let newVx = prev.vx
       let newVy = prev.vy
 
-      // Gravity
-      newVy += 0.1
+      newVy += 0.15
+      newVx *= 0.999
+      newVy *= 0.998
 
-      // Bounce off top and bottom
-      if (newY <= 100 + prev.radius || newY >= canvas.height - 100 - prev.radius) {
-        newVy = -newVy * 0.8
-        newY = newY <= 100 + prev.radius ? 100 + prev.radius : canvas.height - 100 - prev.radius
-      }
-
-      // Net collision
-      if (
-        newX >= canvas.width / 2 - 10 &&
-        newX <= canvas.width / 2 + 10 &&
-        newY >= 100 &&
-        newY <= canvas.height - 100
-      ) {
-        newVx = -newVx
-      }
-
-      // Racket collision
-      if (
-        racket.owner &&
-        newX >= racket.x &&
-        newX <= racket.x + racket.width &&
-        newY >= racket.y &&
-        newY <= racket.y + racket.height
-      ) {
-        const hitDirection = racket.owner === "player1" ? 1 : -1
-        newVx = hitDirection * 5
-        newVy = -3
+      if (newY >= canvas.height - 100 - prev.radius) {
+        newY = canvas.height - 100 - prev.radius
+        newVy = -newVy * 0.7
+        newVx *= 0.9
         audioRef.current.playHit()
       }
 
-      // Score detection
-      if (newX <= 50) {
-        setPlayer2((prev) => ({ ...prev, score: prev.score + 1 }))
-        audioRef.current.playScore()
+      if (newY <= 100 + prev.radius) {
+        newY = 100 + prev.radius
+        newVy = -newVy * 0.6
+      }
+
+      const netTop = courtY + 50
+      if (newX >= netX - prev.radius && newX <= netX + 6 + prev.radius) {
+        if (newY >= netTop) {
+          newVx = -newVx * 0.3
+          newVy = -Math.abs(newVy) * 0.5
+          audioRef.current.playHit()
+        }
+      }
+
+      if (racket.owner) {
+        const racketCenterX = racket.x + racket.width / 2
+        const racketCenterY = racket.y + racket.height / 2
+        const distance = Math.sqrt(Math.pow(newX - racketCenterX, 2) + Math.pow(newY - racketCenterY, 2))
+
+        if (distance <= prev.radius + 15) {
+          const hitDirection = racket.owner === "player1" ? 1 : -1
+          const angle = Math.atan2(newY - racketCenterY, newX - racketCenterX)
+
+          newVx = Math.cos(angle) * 6 * hitDirection
+          newVy = Math.sin(angle) * 4 - 2
+
+          audioRef.current.playHit()
+        }
+      }
+
+      if (newX <= courtX) {
+        if (newY >= courtY && newY <= courtY + courtHeight) {
+          setPlayer2((prev) => ({ ...prev, score: prev.score + 1 }))
+          audioRef.current.playScore()
+        }
         return { x: 400, y: 300, vx: 0, vy: 0, radius: 8 }
-      } else if (newX >= canvas.width - 50) {
-        setPlayer1((prev) => ({ ...prev, score: prev.score + 1 }))
-        audioRef.current.playScore()
+      } else if (newX >= canvas.width - courtX) {
+        if (newY >= courtY && newY <= courtY + courtHeight) {
+          setPlayer1((prev) => ({ ...prev, score: prev.score + 1 }))
+          audioRef.current.playScore()
+        }
         return { x: 400, y: 300, vx: 0, vy: 0, radius: 8 }
       }
 
       return { ...prev, x: newX, y: newY, vx: newVx, vy: newVy }
     })
 
-    // Serve ball if stationary
     if (ball.vx === 0 && ball.vy === 0) {
       if (player1.isServing && player1.hasRacket) {
         serveBall(player1)
@@ -455,18 +520,15 @@ export default function TennisGame() {
       }
     }
 
-    // Draw players
     const drawPlayer = (player: Player) => {
       ctx.fillStyle = player.color
       ctx.fillRect(player.x, player.y, player.width, player.height)
 
-      // Head
       ctx.fillStyle = "#F4C2A1"
       ctx.beginPath()
       ctx.arc(player.x + player.width / 2, player.y - 10, 15, 0, Math.PI * 2)
       ctx.fill()
 
-      // Name
       ctx.fillStyle = "#FFFFFF"
       ctx.font = "12px Arial"
       ctx.fillText(player.name, player.x - 10, player.y - 25)
@@ -475,17 +537,26 @@ export default function TennisGame() {
     drawPlayer(player1)
     drawPlayer(player2)
 
-    // Draw racket
     ctx.fillStyle = racket.owner ? "#8B4513" : "#FFD700"
     ctx.fillRect(racket.x, racket.y, racket.width, racket.height)
 
-    // Draw ball
     ctx.fillStyle = "#FFFF00"
+    ctx.strokeStyle = "#FFA500"
+    ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2)
     ctx.fill()
+    ctx.stroke()
 
-    // Check for winner
+    ctx.strokeStyle = "#FFFFFF"
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(ball.x, ball.y, ball.radius * 0.7, 0, Math.PI)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(ball.x, ball.y, ball.radius * 0.7, Math.PI, Math.PI * 2)
+    ctx.stroke()
+
     if (player1.score >= 5 && !winner) {
       setWinner(player1.name)
       setPlayer1((prev) => ({ ...prev, trophies: prev.trophies + 1, isWinner: true }))
@@ -500,11 +571,19 @@ export default function TennisGame() {
       setShowCelebration(true)
     }
 
+    if (isXRMode) {
+      ctx.fillStyle = "#9400D3"
+      ctx.font = "16px Arial"
+      ctx.fillText("VR TENNIS MODE", canvas.width - 180, 30)
+    }
+
     animationRef.current = requestAnimationFrame(gameLoop)
-  }, [player1, player2, ball, racket, keys, touchControls, winner, serveBall])
+  }, [player1, player2, ball, racket, keys, touchControls, winner, serveBall, isXRMode])
 
   useEffect(() => {
-    audioRef.current.initialize()
+    audioRef.current.initializeXR().then(() => {
+      setXRSupported(audioRef.current.isXRSupported)
+    })
 
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
@@ -536,12 +615,26 @@ export default function TennisGame() {
     setIsMuted(muted)
   }
 
+  const toggleXRMode = async () => {
+    if (!xrSupported) {
+      alert("XR/VR not supported on this device")
+      return
+    }
+
+    if (!isXRMode) {
+      const success = await audioRef.current.startXRSession()
+      setIsXRMode(success)
+    } else {
+      setIsXRMode(false)
+    }
+  }
+
   if (gameState === "menu") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[600px] bg-gradient-to-b from-green-500 to-green-700 rounded-lg p-4 md:p-8">
         <div className="text-center text-white mb-8">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">🎾</h1>
-          <h2 className="text-2xl md:text-4xl font-bold mb-2">Tennis Championship</h2>
+          <h2 className="text-2xl md:text-4xl font-bold mb-2">Tennis Championship {isXRMode ? "VR" : ""}</h2>
           <div className="bg-white/20 rounded-lg p-4 mb-4">
             <p className="text-xl md:text-2xl font-bold text-yellow-300">Created by</p>
             <p className="text-2xl md:text-3xl font-bold text-white">JUSTIN DEVON MITCHELL</p>
@@ -554,17 +647,33 @@ export default function TennisGame() {
               <strong>Player 2:</strong> Arrow keys to move, Enter to grab racket/serve
             </p>
             <p>
-              <strong>Goal:</strong> First to 5 points wins! 🏆
+              <strong>Goal:</strong> Hit ball over the net! First to 5 points wins! 🏆
             </p>
+            {xrSupported && (
+              <p className="text-purple-200">
+                <strong>🥽 VR Mode Available!</strong> Immersive tennis experience
+              </p>
+            )}
           </div>
         </div>
 
-        <button
-          onClick={startGame}
-          className="bg-white text-green-600 px-6 md:px-8 py-3 md:py-4 rounded-lg text-lg md:text-xl font-bold hover:bg-gray-100 transition-colors mb-4"
-        >
-          Start Match!
-        </button>
+        <div className="flex gap-4 mb-4">
+          <button
+            onClick={startGame}
+            className="bg-white text-green-600 px-6 md:px-8 py-3 md:py-4 rounded-lg text-lg md:text-xl font-bold hover:bg-gray-100 transition-colors"
+          >
+            Start Match!
+          </button>
+
+          {xrSupported && (
+            <button
+              onClick={toggleXRMode}
+              className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-500 transition-colors"
+            >
+              {isXRMode ? "Exit VR" : "Enter VR"}
+            </button>
+          )}
+        </div>
 
         <button
           onClick={toggleMute}
@@ -620,13 +729,23 @@ export default function TennisGame() {
             {player2.name}: {player2.score} {player2.hasRacket ? "🎾" : ""}
           </div>
         </div>
-        <div className="text-xs md:text-sm text-gray-600">by J.D. Mitchell</div>
-        <button
-          onClick={toggleMute}
-          className="bg-green-500 text-white px-2 md:px-3 py-1 rounded hover:bg-green-400 transition-colors text-sm"
-        >
-          {isMuted ? "🔇" : "🔊"}
-        </button>
+        <div className="text-xs md:text-sm text-gray-600">by J.D. Mitchell {isXRMode ? "🥽" : ""}</div>
+        <div className="flex gap-2">
+          {xrSupported && (
+            <button
+              onClick={toggleXRMode}
+              className="bg-purple-500 text-white px-2 py-1 rounded text-xs hover:bg-purple-400 transition-colors"
+            >
+              {isXRMode ? "Exit VR" : "VR"}
+            </button>
+          )}
+          <button
+            onClick={toggleMute}
+            className="bg-green-500 text-white px-2 md:px-3 py-1 rounded hover:bg-green-400 transition-colors text-sm"
+          >
+            {isMuted ? "🔇" : "🔊"}
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -634,7 +753,7 @@ export default function TennisGame() {
           ref={canvasRef}
           width={800}
           height={600}
-          className="border-4 border-white rounded-lg max-w-full h-auto"
+          className={`border-4 border-white rounded-lg max-w-full h-auto ${isXRMode ? "shadow-purple-500/50 shadow-2xl" : ""}`}
         />
 
         {gameState === "playing" &&
@@ -745,7 +864,10 @@ export default function TennisGame() {
             <p className="text-xs">Or use movable controller</p>
           </div>
         </div>
-        <p className="text-xs mt-2 text-yellow-300">Grab the racket to serve and hit the ball! First to 5 wins! 🏆</p>
+        <p className="text-xs mt-2 text-yellow-300">
+          Hit the ball OVER the net to your opponent's court! First to 5 wins! 🏆
+        </p>
+        {isXRMode && <p className="text-purple-300 text-xs mt-1">🥽 VR Mode: Enhanced immersive tennis experience!</p>}
       </div>
     </div>
   )
