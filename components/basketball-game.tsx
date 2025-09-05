@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useRef, useState, useCallback } from "react"
+import type React from "react"
 
 interface Fighter {
   x: number
@@ -24,6 +25,13 @@ interface Punch {
   damage: number
   owner: "player1" | "player2"
   active: boolean
+}
+
+interface GameController {
+  x: number
+  y: number
+  isDragging: boolean
+  type: "player1" | "player2"
 }
 
 class BoxingAudio {
@@ -190,6 +198,11 @@ export default function BasketballGame() {
   const [winner, setWinner] = useState<string>("")
   const [isMuted, setIsMuted] = useState(false)
   const [keys, setKeys] = useState<Set<string>>(new Set())
+  const [controllers, setControllers] = useState<GameController[]>([
+    { x: 50, y: 450, isDragging: false, type: "player1" },
+    { x: 650, y: 450, isDragging: false, type: "player2" },
+  ])
+  const [touchControls, setTouchControls] = useState<{ [key: string]: boolean }>({})
 
   const startGame = useCallback(() => {
     setGameState("playing")
@@ -227,6 +240,39 @@ export default function BasketballGame() {
     audioRef.current.playPunch()
   }, [])
 
+  const handleControllerMouseDown = useCallback((index: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    setControllers((prev) =>
+      prev.map((controller, i) => (i === index ? { ...controller, isDragging: true } : controller)),
+    )
+  }, [])
+
+  const handleControllerMouseMove = useCallback((e: MouseEvent) => {
+    setControllers((prev) =>
+      prev.map((controller) => {
+        if (controller.isDragging) {
+          const canvas = canvasRef.current
+          if (!canvas) return controller
+
+          const rect = canvas.getBoundingClientRect()
+          const x = Math.max(0, Math.min(canvas.width - 120, e.clientX - rect.left - 60))
+          const y = Math.max(0, Math.min(canvas.height - 120, e.clientY - rect.top - 60))
+
+          return { ...controller, x, y }
+        }
+        return controller
+      }),
+    )
+  }, [])
+
+  const handleControllerMouseUp = useCallback(() => {
+    setControllers((prev) => prev.map((controller) => ({ ...controller, isDragging: false })))
+  }, [])
+
+  const handleControllerTouch = useCallback((action: string, isPressed: boolean) => {
+    setTouchControls((prev) => ({ ...prev, [action]: isPressed }))
+  }, [])
+
   const gameLoop = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || gameStateRef.current !== "playing") {
@@ -261,47 +307,49 @@ export default function BasketballGame() {
     const currentFighter1 = fighter1
     const currentFighter2 = fighter2
 
-    // Fighter 1 controls (WASD + F to punch, G to block)
-    if (keys.has("a") && currentFighter1.x > 60) {
+    const allKeys = new Set([...keys, ...Object.keys(touchControls).filter((key) => touchControls[key])])
+
+    // Fighter 1 controls (WASD + F to punch, G to block + touch controls)
+    if ((allKeys.has("a") || allKeys.has("p1left")) && currentFighter1.x > 60) {
       setFighter1((prev) => ({ ...prev, x: prev.x - 3, direction: "left" }))
     }
-    if (keys.has("d") && currentFighter1.x < canvas.width - 120) {
+    if ((allKeys.has("d") || allKeys.has("p1right")) && currentFighter1.x < canvas.width - 120) {
       setFighter1((prev) => ({ ...prev, x: prev.x + 3, direction: "right" }))
     }
-    if (keys.has("w") && currentFighter1.y > 360) {
+    if ((allKeys.has("w") || allKeys.has("p1up")) && currentFighter1.y > 360) {
       setFighter1((prev) => ({ ...prev, y: prev.y - 3 }))
     }
-    if (keys.has("s") && currentFighter1.y < 480) {
+    if ((allKeys.has("s") || allKeys.has("p1down")) && currentFighter1.y < 480) {
       setFighter1((prev) => ({ ...prev, y: prev.y + 3 }))
     }
-    if (keys.has("f") && currentFighter1.attackCooldown <= 0) {
+    if ((allKeys.has("f") || allKeys.has("p1punch")) && currentFighter1.attackCooldown <= 0) {
       setFighter1((prev) => ({ ...prev, isAttacking: true, attackCooldown: 30 }))
       createPunch(currentFighter1, true)
     }
-    if (keys.has("g")) {
+    if (allKeys.has("g") || allKeys.has("p1block")) {
       setFighter1((prev) => ({ ...prev, isBlocking: true }))
     } else {
       setFighter1((prev) => ({ ...prev, isBlocking: false }))
     }
 
-    // Fighter 2 controls (Arrow keys + L to punch, K to block)
-    if (keys.has("arrowleft") && currentFighter2.x > 60) {
+    // Fighter 2 controls (Arrow keys + L to punch, K to block + touch controls)
+    if ((allKeys.has("arrowleft") || allKeys.has("p2left")) && currentFighter2.x > 60) {
       setFighter2((prev) => ({ ...prev, x: prev.x - 3, direction: "left" }))
     }
-    if (keys.has("arrowright") && currentFighter2.x < canvas.width - 120) {
+    if ((allKeys.has("arrowright") || allKeys.has("p2right")) && currentFighter2.x < canvas.width - 120) {
       setFighter2((prev) => ({ ...prev, x: prev.x + 3, direction: "right" }))
     }
-    if (keys.has("arrowup") && currentFighter2.y > 360) {
+    if ((allKeys.has("arrowup") || allKeys.has("p2up")) && currentFighter2.y > 360) {
       setFighter2((prev) => ({ ...prev, y: prev.y - 3 }))
     }
-    if (keys.has("arrowdown") && currentFighter2.y < 480) {
+    if ((allKeys.has("arrowdown") || allKeys.has("p2down")) && currentFighter2.y < 480) {
       setFighter2((prev) => ({ ...prev, y: prev.y + 3 }))
     }
-    if (keys.has("l") && currentFighter2.attackCooldown <= 0) {
+    if ((allKeys.has("l") || allKeys.has("p2punch")) && currentFighter2.attackCooldown <= 0) {
       setFighter2((prev) => ({ ...prev, isAttacking: true, attackCooldown: 30 }))
       createPunch(currentFighter2, false)
     }
-    if (keys.has("k")) {
+    if (allKeys.has("k") || allKeys.has("p2block")) {
       setFighter2((prev) => ({ ...prev, isBlocking: true }))
     } else {
       setFighter2((prev) => ({ ...prev, isBlocking: false }))
@@ -404,19 +452,23 @@ export default function BasketballGame() {
     }
 
     animationRef.current = requestAnimationFrame(gameLoop)
-  }, [fighter1, fighter2, keys, winner, createPunch])
+  }, [fighter1, fighter2, keys, touchControls, winner, createPunch])
 
   useEffect(() => {
     audioRef.current.initialize()
 
     window.addEventListener("keydown", handleKeyDown)
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("mousemove", handleControllerMouseMove)
+    window.addEventListener("mouseup", handleControllerMouseUp)
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("mousemove", handleControllerMouseMove)
+      window.removeEventListener("mouseup", handleControllerMouseUp)
     }
-  }, [handleKeyDown, handleKeyUp])
+  }, [handleKeyDown, handleKeyUp, handleControllerMouseMove, handleControllerMouseUp])
 
   useEffect(() => {
     gameStateRef.current = gameState
@@ -481,7 +533,7 @@ export default function BasketballGame() {
             <p className="text-3xl font-bold">{winner} WINS!</p>
           </div>
           <div className="mt-4 bg-white/20 rounded-lg p-3">
-            <p className="text-sm md:text-lg font-bold text-yellow-900">Game by Justin Devon Mitchell</p>
+            <p className="text-sm md:text-lg font-bold text-yellow-900">Game by J.D. Mitchell</p>
           </div>
         </div>
 
@@ -527,19 +579,146 @@ export default function BasketballGame() {
         </button>
       </div>
 
-      <canvas ref={canvasRef} width={800} height={600} className="border-4 border-white rounded-lg max-w-full h-auto" />
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={600}
+          className="border-4 border-white rounded-lg max-w-full h-auto"
+        />
+
+        {gameState === "playing" &&
+          controllers.map((controller, index) => (
+            <div
+              key={index}
+              className="absolute"
+              style={{
+                left: controller.x,
+                top: controller.y,
+                transform: "translate(-50%, -50%)",
+                cursor: controller.isDragging ? "grabbing" : "grab",
+              }}
+              onMouseDown={(e) => handleControllerMouseDown(index, e)}
+            >
+              <div
+                className={`bg-black/70 rounded-lg p-2 ${controller.type === "player1" ? "border-2 border-red-500" : "border-2 border-blue-500"}`}
+              >
+                <div className="text-white text-xs font-bold mb-1 text-center">
+                  {controller.type === "player1" ? "P1" : "P2"}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <div></div>
+                  <button
+                    className="bg-gray-600 hover:bg-gray-500 text-white w-8 h-8 rounded text-xs font-bold"
+                    onTouchStart={() => handleControllerTouch(controller.type === "player1" ? "p1up" : "p2up", true)}
+                    onTouchEnd={() => handleControllerTouch(controller.type === "player1" ? "p1up" : "p2up", false)}
+                    onMouseDown={() => handleControllerTouch(controller.type === "player1" ? "p1up" : "p2up", true)}
+                    onMouseUp={() => handleControllerTouch(controller.type === "player1" ? "p1up" : "p2up", false)}
+                  >
+                    ↑
+                  </button>
+                  <div></div>
+
+                  <button
+                    className="bg-gray-600 hover:bg-gray-500 text-white w-8 h-8 rounded text-xs font-bold"
+                    onTouchStart={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1left" : "p2left", true)
+                    }
+                    onTouchEnd={() => handleControllerTouch(controller.type === "player1" ? "p1left" : "p2left", false)}
+                    onMouseDown={() => handleControllerTouch(controller.type === "player1" ? "p1left" : "p2left", true)}
+                    onMouseUp={() => handleControllerTouch(controller.type === "player1" ? "p1left" : "p2left", false)}
+                  >
+                    ←
+                  </button>
+                  <div className="w-8 h-8"></div>
+                  <button
+                    className="bg-gray-600 hover:bg-gray-500 text-white w-8 h-8 rounded text-xs font-bold"
+                    onTouchStart={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1right" : "p2right", true)
+                    }
+                    onTouchEnd={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1right" : "p2right", false)
+                    }
+                    onMouseDown={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1right" : "p2right", true)
+                    }
+                    onMouseUp={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1right" : "p2right", false)
+                    }
+                  >
+                    →
+                  </button>
+
+                  <div></div>
+                  <button
+                    className="bg-gray-600 hover:bg-gray-500 text-white w-8 h-8 rounded text-xs font-bold"
+                    onTouchStart={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1down" : "p2down", true)
+                    }
+                    onTouchEnd={() => handleControllerTouch(controller.type === "player1" ? "p1down" : "p2down", false)}
+                    onMouseDown={() => handleControllerTouch(controller.type === "player1" ? "p1down" : "p2down", true)}
+                    onMouseUp={() => handleControllerTouch(controller.type === "player1" ? "p1down" : "p2down", false)}
+                  >
+                    ↓
+                  </button>
+                  <div></div>
+                </div>
+
+                <div className="flex gap-1 mt-2">
+                  <button
+                    className={`${controller.type === "player1" ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"} text-white w-8 h-6 rounded text-xs font-bold`}
+                    onTouchStart={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1punch" : "p2punch", true)
+                    }
+                    onTouchEnd={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1punch" : "p2punch", false)
+                    }
+                    onMouseDown={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1punch" : "p2punch", true)
+                    }
+                    onMouseUp={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1punch" : "p2punch", false)
+                    }
+                  >
+                    👊
+                  </button>
+                  <button
+                    className="bg-yellow-600 hover:bg-yellow-500 text-white w-8 h-6 rounded text-xs font-bold"
+                    onTouchStart={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1block" : "p2block", true)
+                    }
+                    onTouchEnd={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1block" : "p2block", false)
+                    }
+                    onMouseDown={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1block" : "p2block", true)
+                    }
+                    onMouseUp={() =>
+                      handleControllerTouch(controller.type === "player1" ? "p1block" : "p2block", false)
+                    }
+                  >
+                    🛡️
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+      </div>
 
       <div className="mt-4 text-center text-white text-sm md:text-base bg-black/50 rounded-lg p-3">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="font-bold text-red-400">Red Fighter (Player 1)</p>
             <p>WASD: Move | F: Punch | G: Block</p>
+            <p className="text-xs">Or use movable controller</p>
           </div>
           <div>
             <p className="font-bold text-blue-400">Blue Fighter (Player 2)</p>
             <p>Arrows: Move | L: Punch | K: Block</p>
+            <p className="text-xs">Or use movable controller</p>
           </div>
         </div>
+        <p className="text-xs mt-2 text-yellow-300">Drag controllers to reposition them!</p>
       </div>
     </div>
   )
