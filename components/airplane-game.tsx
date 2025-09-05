@@ -37,6 +37,15 @@ interface Explosion {
   frame: number
 }
 
+interface Trophy {
+  id: string
+  name: string
+  description: string
+  scoreRequired: number
+  earned: boolean
+  icon: string
+}
+
 interface DrumStick {
   x: number
   y: number
@@ -305,6 +314,43 @@ export default function AirplaneGame() {
   const [coinsCollected, setCoinsCollected] = useState(0)
   const [highScore, setHighScore] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
+  const [trophies, setTrophies] = useState<Trophy[]>([
+    {
+      id: "bronze",
+      name: "Sky Rookie",
+      description: "Score 100 points",
+      scoreRequired: 100,
+      earned: false,
+      icon: "🥉",
+    },
+    { id: "silver", name: "Ace Pilot", description: "Score 500 points", scoreRequired: 500, earned: false, icon: "🥈" },
+    {
+      id: "gold",
+      name: "Sky Master",
+      description: "Score 1000 points",
+      scoreRequired: 1000,
+      earned: false,
+      icon: "🥇",
+    },
+    {
+      id: "platinum",
+      name: "Legend",
+      description: "Score 2000 points",
+      scoreRequired: 2000,
+      earned: false,
+      icon: "🏆",
+    },
+    {
+      id: "diamond",
+      name: "Sky God",
+      description: "Score 5000 points",
+      scoreRequired: 5000,
+      earned: false,
+      icon: "💎",
+    },
+  ])
+  const [newTrophyEarned, setNewTrophyEarned] = useState<Trophy | null>(null)
+
   const [drumSticks, setDrumSticks] = useState<DrumStick[]>([
     { x: 100, y: 400, rotation: 0, length: 80, isDragging: false },
     { x: 700, y: 400, rotation: 0, length: 80, isDragging: false },
@@ -479,7 +525,9 @@ export default function AirplaneGame() {
           enemies.splice(j, 1)
           explosions.push({ x: enemy.x, y: enemy.y, frame: 0 })
           audioRef.current.playExplosionSound()
-          setScore((prev) => prev + (enemy.type === "fast" ? 20 : 10))
+          const newScore = score + (enemy.type === "fast" ? 20 : 10)
+          setScore(newScore)
+          checkTrophies(newScore)
           break
         }
       }
@@ -498,7 +546,9 @@ export default function AirplaneGame() {
       if (checkCollision(player, coin)) {
         coins.splice(i, 1)
         audioRef.current.playCoinSound()
-        setScore((prev) => prev + coin.value)
+        const newScore = score + coin.value
+        setScore(newScore)
+        checkTrophies(newScore)
         setCoinsCollected((prev) => prev + 1)
       }
     }
@@ -691,19 +741,36 @@ export default function AirplaneGame() {
         if (distance < 30) {
           explosionsRef.current.push({ x: enemy.x, y: enemy.y, frame: 0 })
           audioRef.current.playExplosionSound()
-          setScore((prev) => prev + (enemy.type === "fast" ? 30 : 15))
+          const newScore = score + (enemy.type === "fast" ? 30 : 15)
+          setScore(newScore)
+          checkTrophies(newScore)
           return false
         }
         return true
       })
     },
-    [drumSticks],
+    [drumSticks, score],
   )
 
   const toggleMute = () => {
     const muted = audioRef.current.toggleMute()
     setIsMuted(muted)
   }
+
+  const checkTrophies = useCallback((currentScore: number) => {
+    setTrophies((prev) => {
+      const updated = prev.map((trophy) => {
+        if (!trophy.earned && currentScore >= trophy.scoreRequired) {
+          setNewTrophyEarned(trophy)
+          // Clear trophy notification after 3 seconds
+          setTimeout(() => setNewTrophyEarned(null), 3000)
+          return { ...trophy, earned: true }
+        }
+        return trophy
+      })
+      return updated
+    })
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -757,6 +824,7 @@ export default function AirplaneGame() {
     audioRef.current.resume()
     initGame()
     setGameState("playing")
+    setNewTrophyEarned(null)
 
     if (!isMuted) {
       // To add your song:
@@ -784,7 +852,25 @@ export default function AirplaneGame() {
             <p className="text-gray-600">Use arrow keys to move, spacebar to shoot!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
             <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
-            <div className="text-sm text-gray-700 bg-red-50 p-3 rounded border-l-4 border-red-400">
+
+            <div className="text-sm text-gray-700 bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
+              <p className="font-semibold">🏆 TROPHY ACHIEVEMENTS:</p>
+              <div className="grid grid-cols-2 gap-1 mt-2">
+                {trophies.map((trophy) => (
+                  <div
+                    key={trophy.id}
+                    className={`flex items-center gap-1 ${trophy.earned ? "text-green-600" : "text-gray-400"}`}
+                  >
+                    <span>{trophy.icon}</span>
+                    <span className="text-xs">
+                      {trophy.name} ({trophy.scoreRequired}pts)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-700 bg-red-50 p-3 rounded border">
               <p className="font-semibold">⚔️ BATTLE MECHANICS:</p>
               <p>• Fast enemies (red) = 20 points • Basic enemies (brown) = 10 points</p>
               <p>• Drum stick hits = 30/15 bonus points • Golden coins = 50 points</p>
@@ -805,6 +891,23 @@ export default function AirplaneGame() {
             <h2 className="text-2xl font-bold text-red-600">Game Over!</h2>
             <p className="text-gray-600">Final Score: {score}</p>
             <p className="text-gray-600">Coins Collected: {coinsCollected}</p>
+
+            <div className="bg-yellow-50 p-3 rounded border">
+              <p className="font-semibold text-yellow-700">🏆 Trophies Earned:</p>
+              <div className="flex justify-center gap-2 mt-2">
+                {trophies
+                  .filter((t) => t.earned)
+                  .map((trophy) => (
+                    <span key={trophy.id} className="text-2xl" title={trophy.name}>
+                      {trophy.icon}
+                    </span>
+                  ))}
+                {trophies.filter((t) => t.earned).length === 0 && (
+                  <span className="text-gray-500 text-sm">No trophies earned yet</span>
+                )}
+              </div>
+            </div>
+
             {score === highScore && score > 0 && <p className="text-green-600 font-semibold">New High Score! 🎉</p>}
             <Button onClick={startGame} size="lg">
               Play Again
@@ -815,6 +918,17 @@ export default function AirplaneGame() {
           </div>
         )}
       </Card>
+
+      {newTrophyEarned && (
+        <div className="fixed top-4 right-4 bg-yellow-400 text-black p-4 rounded-lg shadow-lg border-2 border-yellow-600 animate-bounce z-50">
+          <div className="text-center">
+            <div className="text-3xl mb-2">{newTrophyEarned.icon}</div>
+            <div className="font-bold">Trophy Earned!</div>
+            <div className="text-sm">{newTrophyEarned.name}</div>
+            <div className="text-xs text-gray-700">{newTrophyEarned.description}</div>
+          </div>
+        </div>
+      )}
 
       <div className="relative">
         <canvas
@@ -848,6 +962,13 @@ export default function AirplaneGame() {
       {gameState === "playing" && (
         <div className="text-white text-center">
           <p className="text-sm">Arrow keys: Move | Spacebar: Shoot | M: Toggle Sound | Q/E: Drum Hits</p>
+          <div className="flex justify-center gap-4 mt-2 text-sm">
+            <span>Score: {score}</span>
+            <span>Coins: {coinsCollected}</span>
+            <span>
+              Trophies: {trophies.filter((t) => t.earned).length}/{trophies.length}
+            </span>
+          </div>
         </div>
       )}
     </div>
