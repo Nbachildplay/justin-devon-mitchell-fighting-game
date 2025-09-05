@@ -366,16 +366,16 @@ export default function AirplaneGame() {
 
   const spawnEnemy = (canvas: HTMLCanvasElement) => {
     const now = Date.now()
-    const spawnRate = Math.max(800 - Math.floor(gameTimeRef.current / 10000) * 100, 300)
+    const spawnRate = Math.max(600 - Math.floor(gameTimeRef.current / 8000) * 80, 200)
 
     if (now - lastEnemySpawnRef.current > spawnRate) {
-      const enemyType = Math.random() < 0.7 ? "basic" : "fast"
+      const enemyType = Math.random() < 0.6 ? "basic" : "fast"
       const enemy: Enemy = {
         x: Math.random() * (canvas.width - 30),
         y: -30,
         width: 30,
         height: 25,
-        speed: enemyType === "fast" ? 3 : 1.5,
+        speed: enemyType === "fast" ? 4 : 2,
         type: enemyType,
       }
       enemiesRef.current.push(enemy)
@@ -417,16 +417,16 @@ export default function AirplaneGame() {
     const explosions = explosionsRef.current
 
     if (keysRef.current.has("ArrowLeft") && player.x > 0) {
-      player.x -= player.speed
+      player.x -= player.speed + 1
     }
     if (keysRef.current.has("ArrowRight") && player.x < canvas.width - player.width) {
-      player.x += player.speed
+      player.x += player.speed + 1
     }
     if (keysRef.current.has("ArrowUp") && player.y > 0) {
-      player.y -= player.speed
+      player.y -= player.speed + 1
     }
     if (keysRef.current.has("ArrowDown") && player.y < canvas.height - player.height) {
-      player.y += player.speed
+      player.y += player.speed + 1
     }
 
     spawnEnemy(canvas)
@@ -526,6 +526,10 @@ export default function AirplaneGame() {
     bullets.forEach((bullet) => {
       ctx.fillStyle = bullet.isPlayerBullet ? "#fbbf24" : "#ef4444"
       ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height)
+      if (bullet.isPlayerBullet) {
+        ctx.fillStyle = "rgba(251, 191, 36, 0.5)"
+        ctx.fillRect(bullet.x - 1, bullet.y + 5, bullet.width + 2, bullet.height)
+      }
     })
 
     coins.forEach((coin) => {
@@ -548,9 +552,14 @@ export default function AirplaneGame() {
     })
 
     explosions.forEach((explosion) => {
-      const size = 20 - explosion.frame * 2
-      ctx.fillStyle = `rgba(255, ${165 - explosion.frame * 15}, 0, ${1 - explosion.frame / 10})`
+      const size = 30 - explosion.frame * 3
+      const alpha = 1 - explosion.frame / 10
+
+      ctx.fillStyle = `rgba(255, ${100 + explosion.frame * 10}, 0, ${alpha})`
       ctx.fillRect(explosion.x - size / 2, explosion.y - size / 2, size, size)
+
+      ctx.fillStyle = `rgba(255, 255, 0, ${alpha * 0.7})`
+      ctx.fillRect(explosion.x - size / 3, explosion.y - size / 3, size / 1.5, size / 1.5)
     })
 
     drumSticks.forEach((stick, index) => {
@@ -558,23 +567,19 @@ export default function AirplaneGame() {
       ctx.translate(stick.x, stick.y)
       ctx.rotate(stick.rotation)
 
-      // Drum stick handle
       ctx.fillStyle = "#8B4513"
       ctx.fillRect(-5, -5, stick.length, 10)
 
-      // Drum stick tip
       ctx.fillStyle = "#FFD700"
       ctx.beginPath()
       ctx.arc(stick.length, 0, 8, 0, Math.PI * 2)
       ctx.fill()
 
-      // Grip
       ctx.fillStyle = "#654321"
       ctx.fillRect(-5, -3, 20, 6)
 
       ctx.restore()
 
-      // Hit detection area (visual indicator)
       if (stick.isDragging) {
         const endX = stick.x + Math.cos(stick.rotation) * stick.length
         const endY = stick.y + Math.sin(stick.rotation) * stick.length
@@ -627,7 +632,6 @@ export default function AirplaneGame() {
     (stickIndex: number) => {
       audioRef.current.playDrumHit()
 
-      // Check if drum stick hits enemies or bullets
       const stick = drumSticks[stickIndex]
       const stickEndX = stick.x + Math.cos(stick.rotation) * stick.length
       const stickEndY = stick.y + Math.sin(stick.rotation) * stick.length
@@ -729,15 +733,15 @@ export default function AirplaneGame() {
 
         {gameState === "menu" && (
           <div className="text-center space-y-4">
+            <p className="text-gray-600 font-semibold">🚀 INTENSE AIRPLANE BATTLE! 🚀</p>
             <p className="text-gray-600">Use arrow keys to move, spacebar to shoot!</p>
             <p className="text-sm text-gray-500">Collect golden coins for bonus points! Press M to toggle sound</p>
             <p className="text-sm text-blue-600">🥁 Drag drum sticks to position them, Q/E to hit enemies!</p>
-            <div className="text-xs text-gray-400 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
-              <p className="font-semibold mb-1">🎵 To add your song:</p>
-              <p>1. Save your MP3 as "justin-devon-mitchell-story.mp3" in the public folder</p>
-              <p>2. Uncomment the loadCustomMusic line in the startGame function</p>
-              <p className="mt-2 font-semibold">🔗 Shareable Link:</p>
-              <p>Copy the preview URL from your browser to share the game!</p>
+            <div className="text-sm text-gray-700 bg-red-50 p-3 rounded border-l-4 border-red-400">
+              <p className="font-semibold">⚔️ BATTLE MECHANICS:</p>
+              <p>• Fast enemies (red) = 20 points • Basic enemies (brown) = 10 points</p>
+              <p>• Drum stick hits = 30/15 bonus points • Golden coins = 50 points</p>
+              <p>• Survive the increasingly intense enemy waves!</p>
             </div>
             <Button onClick={startGame} size="lg">
               Start Game
